@@ -1,5 +1,5 @@
 {
-  "name": "fflate",
+  "name": "@mertushka/fflate",
   "version": "0.8.2",
   "description": "High performance (de)compression in an 8kB package",
   "main": "./lib/index.cjs",
@@ -59,11 +59,17 @@
     "types": false
   },
   "sideEffects": false,
-  "homepage": "https://101arrowz.github.io/fflate",
-  "repository": "https://github.com/101arrowz/fflate",
+  "homepage": "https://github.com/mertushka/fflate#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mertushka/fflate.git"
+  },
   "bugs": {
     "email": "arjunbarrett@gmail.com",
-    "url": "https://github.com/101arrowz/fflate/issues"
+    "url": "https://github.com/mertushka/fflate/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "author": "Arjun Barrett <arjunbarrett@gmail.com>",
   "license": "MIT",

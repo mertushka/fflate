@@ -28,19 +28,19 @@ If you'd like to try `fflate` for yourself without installing it, you can take a
 
 ## Usage
 
-Install `fflate`:
+Install `@mertushka/fflate`:
 ```sh
-npm i fflate # or yarn add fflate, or pnpm add fflate
+npm i @mertushka/fflate # or yarn add @mertushka/fflate, or pnpm add @mertushka/fflate
 ```
 
 Import:
 ```js
 // I will assume that you use the following for the rest of this guide
-import * as fflate from 'fflate';
+import * as fflate from '@mertushka/fflate';
 
 // However, you should import ONLY what you need to minimize bloat.
 // So, if you just need GZIP compression support:
-import { gzipSync } from 'fflate';
+import { gzipSync } from '@mertushka/fflate';
 // Woo! You just saved 20 kB off your bundle with one line.
 ```
 
@@ -48,7 +48,7 @@ If your environment doesn't support ES Modules (e.g. Node.js):
 ```js
 // Try to avoid this when using fflate in the browser, as it will import
 // all of fflate's components, even those that you aren't using.
-const fflate = require('fflate');
+const fflate = require('@mertushka/fflate');
 ```
 
 If you want to load from a CDN in the browser:
@@ -60,13 +60,13 @@ Note that tree shaking is completely unsupported from the CDN. If you want
 a small build without build tools, please ask me and I will make one manually
 with only the features you need. This build is about 31kB, or 11.5kB gzipped.
 -->
-<script src="https://unpkg.com/fflate@0.8.2"></script>
-<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
+<script src="https://unpkg.com/@mertushka/fflate@0.8.2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mertushka/fflate@0.8.2/umd/index.js"></script>
 <!-- Now, the global variable fflate contains the library -->
 
 <!-- If you're going buildless but want ESM, import from Skypack -->
 <script type="module">
-  import * as fflate from 'https://cdn.skypack.dev/fflate@0.8.2?min';
+  import * as fflate from 'https://cdn.skypack.dev/@mertushka/fflate@0.8.2?min';
 </script>
 ```
 
@@ -75,8 +75,8 @@ If you are using Deno:
 // Don't use the ?dts Skypack flag; it isn't necessary for Deno support
 // The @deno-types comment adds TypeScript typings
 
-// @deno-types="https://cdn.skypack.dev/fflate@0.8.2/lib/index.d.ts"
-import * as fflate from 'https://cdn.skypack.dev/fflate@0.8.2?min';
+// @deno-types="https://cdn.skypack.dev/@mertushka/fflate@0.8.2/lib/index.d.ts"
+import * as fflate from 'https://cdn.skypack.dev/@mertushka/fflate@0.8.2?min';
 ```
 
 
@@ -85,9 +85,9 @@ If your environment doesn't support bundling:
 // Again, try to import just what you need
 
 // For the browser:
-import * as fflate from 'fflate/esm/browser.js';
+import * as fflate from '@mertushka/fflate/esm/browser.js';
 // If the standard ESM import fails on Node (i.e. older version):
-import * as fflate from 'fflate/esm';
+import * as fflate from '@mertushka/fflate/esm';
 ```
 
 And use:
@@ -383,7 +383,7 @@ Note that there is a significant initial overhead to using workers of about 50ms
 import {
   gzip, zlib, AsyncGzip, zip, unzip, strFromU8,
   Zip, AsyncZipDeflate, Unzip, AsyncUnzipInflate
-} from 'fflate';
+} from '@mertushka/fflate';
 
 // Workers will work in almost any browser (even IE11!)
 // All of the async APIs use a node-style callback as so:
@@ -498,13 +498,13 @@ unzip.register(AsyncUnzipInflate);
 unzip.push(data, true);
 ```
 
-See the [documentation](https://github.com/101arrowz/fflate/blob/master/docs/README.md) for more detailed information about the API.
+See the [documentation](https://github.com/mertushka/fflate/blob/master/docs/README.md) for more detailed information about the API.
 
 ## Bundle size estimates
 
 The bundle size measurements for `fflate` on sites like Bundlephobia include every feature of the library and should be seen as an upper bound. As long as you are using tree shaking or dead code elimination, this table should give you a general idea of `fflate`'s bundle size for the features you need.
 
-The maximum bundle size that is possible with `fflate` is about 31kB (11.5kB gzipped) if you use every single feature, but feature parity with `pako` is only around 10kB (as opposed to 45kB from `pako`). If your bundle size increases dramatically after adding `fflate`, please [create an issue](https://github.com/101arrowz/fflate/issues/new).
+The maximum bundle size that is possible with `fflate` is about 31kB (11.5kB gzipped) if you use every single feature, but feature parity with `pako` is only around 10kB (as opposed to 45kB from `pako`). If your bundle size increases dramatically after adding `fflate`, please [create an issue](https://github.com/mertushka/fflate/issues/new).
 
 | Feature                 | Bundle size (minified)         | Nearest competitor      |
 |-------------------------|--------------------------------|-------------------------|
