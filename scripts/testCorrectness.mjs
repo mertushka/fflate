@@ -72,7 +72,8 @@ async function testCallbacks() {
   equal(await call(fflate.inflate, raw), sample, 'callback deflate/inflate');
   equal(await call(fflate.decompress, raw), sample, 'callback decompress raw');
 
-  const gz = await call(fflate.gzip, sample, { level: 6 });
+  const gzipOpts = { level: 6, mtime: 0 };
+  const gz = await call(fflate.gzip, sample, gzipOpts);
   equal(await call(fflate.gunzip, gz), sample, 'callback gzip/gunzip');
   equal(await call(fflate.decompress, gz), sample, 'callback decompress gzip');
 
@@ -80,7 +81,7 @@ async function testCallbacks() {
   equal(await call(fflate.unzlib, zl), sample, 'callback zlib/unzlib');
   equal(await call(fflate.decompress, zl), sample, 'callback decompress zlib');
 
-  equal(await call(fflate.compress, sample, { level: 6 }), gz, 'callback compress alias');
+  equal(await call(fflate.compress, sample, gzipOpts), gz, 'callback compress alias');
 }
 
 function testSyncStreams() {
