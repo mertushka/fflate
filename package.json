@@ -93,13 +93,17 @@
   ],
   "scripts": {
     "build": "npm run build:lib && npm run build:docs && npm run build:demo",
-    "script": "node -r ts-node/register scripts/$SC.ts",
+    "check": "tsc --noEmit",
+    "bench:inflate": "node scripts/benchInflate.mjs",
     "build:lib": "tsc && tsc --project tsconfig.esm.json && npm run build:rewrite && npm run build:umd",
-    "build:umd": "SC=buildUMD npm run script",
-    "build:rewrite": "SC=rewriteBuilds npm run script",
-    "build:demo": "tsc --project tsconfig.demo.json && parcel build demo/index.html --no-cache --public-url \"./\" && SC=cpGHPages npm run script",
+    "build:umd": "ts-node scripts/buildUMD.ts",
+    "build:rewrite": "ts-node scripts/rewriteBuilds.ts",
+    "build:demo": "tsc --project tsconfig.demo.json && parcel build demo/index.html --no-cache --public-url \"./\" && ts-node scripts/cpGHPages.ts",
     "build:docs": "typedoc --plugin typedoc-plugin-markdown --hideBreadcrumbs --readme none --disableSources --excludePrivate --excludeProtected --githubPages false --out docs/ src/index.ts",
-    "test": "TS_NODE_PROJECT=test/tsconfig.json uvu -b -r ts-node/register test",
+    "test": "npm run test:correctness",
+    "test:ci": "npm test",
+    "test:correctness": "node scripts/testCorrectness.mjs",
+    "test:upstream": "node scripts/test.mjs",
     "prepack": "npm run build && npm run test"
   },
   "devDependencies": {

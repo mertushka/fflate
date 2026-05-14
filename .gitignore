@@ -11,3 +11,5 @@ umd/
 # for demo
 .parcel-cache
 dist/
+benchmark-*.json
+benchmark-*.md

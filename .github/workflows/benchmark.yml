@@ -1,0 +1,86 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - src/**
+      - scripts/benchInflate.mjs
+      - package.json
+      - package-lock.json
+      - .github/workflows/benchmark.yml
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - src/**
+      - scripts/benchInflate.mjs
+      - package.json
+      - package-lock.json
+      - .github/workflows/benchmark.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inflate:
+    name: Inflate benchmark
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build package artifacts
+        run: npm run build:lib
+
+      - name: Run Node benchmark
+        run: |
+          npm run bench:inflate -- --runtime node --json benchmark-node.json --markdown benchmark-node.md
+          cat benchmark-node.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Detect Chrome
+        id: chrome
+        shell: bash
+        run: |
+          if command -v google-chrome-stable >/dev/null 2>&1; then
+            echo "bin=$(command -v google-chrome-stable)" >> "$GITHUB_OUTPUT"
+          elif command -v google-chrome >/dev/null 2>&1; then
+            echo "bin=$(command -v google-chrome)" >> "$GITHUB_OUTPUT"
+          elif command -v chromium >/dev/null 2>&1; then
+            echo "bin=$(command -v chromium)" >> "$GITHUB_OUTPUT"
+          elif command -v chromium-browser >/dev/null 2>&1; then
+            echo "bin=$(command -v chromium-browser)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Chrome benchmark
+        if: steps.chrome.outputs.bin != ''
+        env:
+          CHROME_BIN: ${{ steps.chrome.outputs.bin }}
+        run: |
+          npm run bench:inflate -- --runtime browser --json benchmark-browser.json --markdown benchmark-browser.md
+          printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          cat benchmark-browser.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v6
+        with:
+          name: inflate-benchmarks
+          path: |
+            benchmark-*.json
+            benchmark-*.md
+          if-no-files-found: error
