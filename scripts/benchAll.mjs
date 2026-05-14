@@ -5,18 +5,39 @@ import { fileURLToPath } from 'node:url';
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const args = parseArgs(process.argv.slice(2));
 const quick = Boolean(args.quick);
+const runtime = args.runtime || 'all';
 
-const suites = quick
-  ? [
-    ['benchInflate.mjs', ['--runtime', 'node', '--iterations', '40', '--rounds', '3', '--warmup', '10']],
-    ['benchCompression.mjs', ['--iterations', '20', '--rounds', '3', '--warmup', '4']],
-    ['benchZip.mjs', ['--iterations', '3', '--rounds', '3', '--warmup', '1']]
-  ]
-  : [
-    ['benchInflate.mjs', ['--runtime', 'node']],
-    ['benchCompression.mjs', []],
-    ['benchZip.mjs', []]
-  ];
+if (!['node', 'browser', 'all'].includes(runtime)) {
+  throw new Error(`Unsupported runtime "${runtime}". Use --runtime node, --runtime browser, or --runtime all.`);
+}
+
+const suites = [];
+if (runtime == 'node' || runtime == 'all') {
+  suites.push(...(quick
+    ? [
+      ['benchInflate.mjs', ['--runtime', 'node', '--iterations', '40', '--rounds', '3', '--warmup', '10']],
+      ['benchCompression.mjs', ['--runtime', 'node', '--iterations', '20', '--rounds', '3', '--warmup', '4']],
+      ['benchZip.mjs', ['--runtime', 'node', '--iterations', '3', '--rounds', '3', '--warmup', '1']]
+    ]
+    : [
+      ['benchInflate.mjs', ['--runtime', 'node']],
+      ['benchCompression.mjs', ['--runtime', 'node']],
+      ['benchZip.mjs', ['--runtime', 'node']]
+    ]));
+}
+if (runtime == 'browser' || runtime == 'all') {
+  suites.push(...(quick
+    ? [
+      ['benchInflate.mjs', ['--runtime', 'browser', '--iterations', '40', '--rounds', '3', '--warmup', '10']],
+      ['benchCompression.mjs', ['--runtime', 'browser', '--iterations', '10', '--rounds', '3', '--warmup', '2']],
+      ['benchZip.mjs', ['--runtime', 'browser', '--iterations', '2', '--rounds', '3', '--warmup', '1']]
+    ]
+    : [
+      ['benchInflate.mjs', ['--runtime', 'browser']],
+      ['benchCompression.mjs', ['--runtime', 'browser']],
+      ['benchZip.mjs', ['--runtime', 'browser']]
+    ]));
+}
 
 for (let i = 0; i < suites.length; ++i) {
   const [script, scriptArgs] = suites[i];

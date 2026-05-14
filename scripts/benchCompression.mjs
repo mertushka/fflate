@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { existsSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { performance } from 'node:perf_hooks';
@@ -8,94 +8,241 @@ import {
   inflateRawSync,
   inflateSync
 } from 'node:zlib';
+import { runBrowserBench } from './benchBrowserHarness.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const require = createRequire(import.meta.url);
 
 const args = parseArgs(process.argv.slice(2));
-const iterations = Number(args.iterations || 80);
+const runtime = args.runtime || 'node';
+const iterations = Number(args.iterations || (runtime == 'browser' ? 24 : 80));
 const rounds = Number(args.rounds || 5);
-const warmup = Number(args.warmup || 10);
+const warmup = Number(args.warmup || (runtime == 'browser' ? 4 : 10));
 const level = Number(args.level || 6);
 const targetSize = Number(args.size || 1232923);
 
-const fflatePath = join(root, 'lib', 'index.cjs');
-if (!existsSync(fflatePath)) {
-  throw new Error('Missing lib/index.cjs. Run npm run build:lib before benchmarking.');
+if (!['node', 'browser'].includes(runtime)) {
+  throw new Error(`Unsupported runtime "${runtime}". Use --runtime node or --runtime browser.`);
 }
 
-const fflate = require(fflatePath);
-const pako = require('pako');
-const input = makeFixture(targetSize);
-
-const tasks = [
-  {
-    name: 'Raw DEFLATE',
-    baseline: 'pako.deflateRaw',
-    candidate: 'fflate.deflateSync',
-    pako: () => pako.deflateRaw(input, { level }),
-    fflate: () => fflate.deflateSync(input, { level }),
-    verify: output => inflateRawSync(output)
-  },
-  {
-    name: 'GZIP',
-    baseline: 'pako.gzip',
-    candidate: 'fflate.gzipSync',
-    pako: () => pako.gzip(input, { level }),
-    fflate: () => fflate.gzipSync(input, { level }),
-    verify: output => gunzipSync(output)
-  },
-  {
-    name: 'Zlib',
-    baseline: 'pako.deflate',
-    candidate: 'fflate.zlibSync',
-    pako: () => pako.deflate(input, { level }),
-    fflate: () => fflate.zlibSync(input, { level }),
-    verify: output => inflateSync(output)
-  }
-];
-
+const fixture = makeFixture(targetSize);
+const input = new TextEncoder().encode(fixture);
 const result = {
   type: 'compression',
-  runtime: 'node',
+  runtime,
   inputBytes: input.length,
   level,
   iterations,
   rounds,
   warmup,
   generatedAt: new Date().toISOString(),
-  tasks: []
+  tasks: runtime == 'browser'
+    ? await benchBrowser({ fixture, iterations, rounds, warmup, level })
+    : await benchNode({ input, iterations, rounds, warmup, level })
 };
-
-for (const task of tasks) {
-  const pakoOutput = task.pako();
-  const fflateOutput = task.fflate();
-  assertEqual(task.verify(pakoOutput), input, task.baseline);
-  assertEqual(task.verify(fflateOutput), input, task.candidate);
-
-  const summary = summarize(runRounds({
-    rounds,
-    iterations,
-    warmup,
-    pako: task.pako,
-    fflate: task.fflate
-  }));
-  summary.name = task.name;
-  summary.baseline = task.baseline;
-  summary.candidate = task.candidate;
-  summary.outputBytes = {
-    pako: pakoOutput.length,
-    fflate: fflateOutput.length
-  };
-  summary.ratio = summary.medians.fflate / summary.medians.pako;
-  result.tasks.push(summary);
-}
 
 const markdown = toMarkdown(result);
 console.log(markdown);
 
 if (args.json) writeFileSync(join(root, args.json), JSON.stringify(result, null, 2) + '\n');
 if (args.markdown) writeFileSync(join(root, args.markdown), markdown + '\n');
+
+async function benchNode({ input, iterations, rounds, warmup, level }) {
+  const fflatePath = join(root, 'lib', 'index.cjs');
+  if (!existsSync(fflatePath)) {
+    throw new Error('Missing lib/index.cjs. Run npm run build:lib before benchmarking.');
+  }
+
+  const fflate = require(fflatePath);
+  const pako = require('pako');
+  const tasks = [
+    {
+      name: 'Raw DEFLATE',
+      baseline: 'pako.deflateRaw',
+      candidate: 'fflate.deflateSync',
+      pako: () => pako.deflateRaw(input, { level }),
+      fflate: () => fflate.deflateSync(input, { level }),
+      verify: output => inflateRawSync(output)
+    },
+    {
+      name: 'GZIP',
+      baseline: 'pako.gzip',
+      candidate: 'fflate.gzipSync',
+      pako: () => pako.gzip(input, { level }),
+      fflate: () => fflate.gzipSync(input, { level }),
+      verify: output => gunzipSync(output)
+    },
+    {
+      name: 'Zlib',
+      baseline: 'pako.deflate',
+      candidate: 'fflate.zlibSync',
+      pako: () => pako.deflate(input, { level }),
+      fflate: () => fflate.zlibSync(input, { level }),
+      verify: output => inflateSync(output)
+    }
+  ];
+
+  const results = [];
+  for (const task of tasks) {
+    const pakoOutput = task.pako();
+    const fflateOutput = task.fflate();
+    assertEqual(task.verify(pakoOutput), input, task.baseline);
+    assertEqual(task.verify(fflateOutput), input, task.candidate);
+
+    const summary = summarize(runRounds({
+      rounds,
+      iterations,
+      warmup,
+      pako: task.pako,
+      fflate: task.fflate
+    }));
+    summary.name = task.name;
+    summary.baseline = task.baseline;
+    summary.candidate = task.candidate;
+    summary.outputBytes = {
+      pako: pakoOutput.length,
+      fflate: fflateOutput.length
+    };
+    summary.ratio = summary.medians.fflate / summary.medians.pako;
+    results.push(summary);
+  }
+  return results;
+}
+
+async function benchBrowser({ fixture, iterations, rounds, warmup, level }) {
+  const fflateBundle = readFileSync(join(root, 'umd', 'index.js'));
+  const pakoBundle = readFileSync(join(root, 'node_modules', 'pako', 'dist', 'pako.min.js'));
+  const html = `<!doctype html><meta charset="utf-8"><pre id="out">running</pre>
+<script src="/pako.js"></script><script src="/fflate.js"></script><script src="/data.js"></script>
+<script>
+(function(){
+  try {
+    const input = new TextEncoder().encode(BENCH_TEXT);
+    const level = ${level};
+    const tasks = [
+      {
+        name: 'Raw DEFLATE',
+        baseline: 'pako.deflateRaw',
+        candidate: 'fflate.deflateSync',
+        pako: () => pako.deflateRaw(input, { level }),
+        fflate: () => fflate.deflateSync(input, { level }),
+        verify: output => fflate.inflateSync(output)
+      },
+      {
+        name: 'GZIP',
+        baseline: 'pako.gzip',
+        candidate: 'fflate.gzipSync',
+        pako: () => pako.gzip(input, { level }),
+        fflate: () => fflate.gzipSync(input, { level }),
+        verify: output => fflate.gunzipSync(output)
+      },
+      {
+        name: 'Zlib',
+        baseline: 'pako.deflate',
+        candidate: 'fflate.zlibSync',
+        pako: () => pako.deflate(input, { level }),
+        fflate: () => fflate.zlibSync(input, { level }),
+        verify: output => fflate.unzlibSync(output)
+      }
+    ];
+    const results = [];
+    for (const task of tasks) {
+      const pakoOutput = task.pako();
+      const fflateOutput = task.fflate();
+      assertEqual(task.verify(pakoOutput), input, task.baseline);
+      assertEqual(task.verify(fflateOutput), input, task.candidate);
+      const summary = summarize(runRounds({
+        rounds: ${rounds},
+        iterations: ${iterations},
+        warmup: ${warmup},
+        pako: task.pako,
+        fflate: task.fflate
+      }));
+      summary.name = task.name;
+      summary.baseline = task.baseline;
+      summary.candidate = task.candidate;
+      summary.outputBytes = {
+        pako: pakoOutput.length,
+        fflate: fflateOutput.length
+      };
+      summary.ratio = summary.medians.fflate / summary.medians.pako;
+      results.push(summary);
+    }
+    sendResult({ tasks: results });
+  } catch (e) {
+    sendResult({ error: e && (e.stack || e.message) || String(e) });
+  }
+
+  function sendResult(result) {
+    document.getElementById('out').textContent = JSON.stringify(result);
+    const request = new XMLHttpRequest();
+    request.open('POST', '/result', false);
+    request.setRequestHeader('content-type', 'application/json');
+    request.send(JSON.stringify(result));
+  }
+  function runRounds({ rounds, iterations, warmup, pako, fflate }) {
+    const results = [];
+    for (let r = 0; r < rounds; ++r) {
+      if (r & 1) results.push([bench('fflate', fflate, iterations, warmup), bench('pako', pako, iterations, warmup)]);
+      else results.push([bench('pako', pako, iterations, warmup), bench('fflate', fflate, iterations, warmup)]);
+    }
+    return results;
+  }
+  function bench(name, fn, iterations, warmup) {
+    let keep = 0;
+    for (let i = 0; i < warmup; ++i) keep = keepResult(keep, fn());
+    const start = performance.now();
+    for (let i = 0; i < iterations; ++i) keep = keepResult(keep, fn());
+    const elapsed = performance.now() - start;
+    return { name, ops: iterations / elapsed * 1000, ms: elapsed / iterations, keep };
+  }
+  function keepResult(keep, result) {
+    return (keep + result.length + (result[0] || 0) + (result[result.length - 1] || 0)) | 0;
+  }
+  function summarize(rounds) {
+    const pakoValues = values(rounds, 'pako');
+    const fflateValues = values(rounds, 'fflate');
+    return {
+      medians: {
+        pako: median(pakoValues),
+        fflate: median(fflateValues)
+      },
+      pako: pakoValues,
+      fflate: fflateValues,
+      rounds
+    };
+  }
+  function values(rounds, name) {
+    const out = [];
+    for (const round of rounds) {
+      for (const result of round) {
+        if (result.name == name) out.push(result.ops);
+      }
+    }
+    return out.sort((a, b) => a - b);
+  }
+  function median(values) {
+    return values[values.length >> 1];
+  }
+  function assertEqual(actual, expected, name) {
+    if (actual.length != expected.length) throw new Error(name + ' returned ' + actual.length + ' bytes, expected ' + expected.length);
+    for (let i = 0; i < expected.length; ++i) {
+      if (actual[i] != expected[i]) throw new Error(name + ' byte mismatch at ' + i);
+    }
+  }
+})();
+</script>`;
+  const result = await runBrowserBench({
+    timeout: 300000,
+    routes: {
+      '/pako.js': { type: 'application/javascript', body: pakoBundle },
+      '/fflate.js': { type: 'application/javascript', body: fflateBundle },
+      '/data.js': { type: 'application/javascript', body: `var BENCH_TEXT=${JSON.stringify(fixture)};` }
+    },
+    html
+  });
+  return result.tasks;
+}
 
 function parseArgs(argv) {
   const parsed = {};
@@ -130,7 +277,7 @@ function makeFixture(size) {
     out += sentence + (rand() % 10 == 0 ? '!\n' : '. ');
     if (i % 13 == 12) out += '\n';
   }
-  return new TextEncoder().encode(out.slice(0, size));
+  return out.slice(0, size);
 
   function rand() {
     seed = (seed * 1664525 + 1013904223) >>> 0;

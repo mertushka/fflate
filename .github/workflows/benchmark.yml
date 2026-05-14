@@ -55,13 +55,13 @@ jobs:
 
       - name: Run Node compression benchmark
         run: |
-          npm run bench:compression -- --json benchmark-compression-node.json --markdown benchmark-compression-node.md
+          npm run bench:compression -- --runtime node --json benchmark-compression-node.json --markdown benchmark-compression-node.md
           printf '\n' >> "$GITHUB_STEP_SUMMARY"
           cat benchmark-compression-node.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run Node ZIP benchmark
         run: |
-          npm run bench:zip -- --json benchmark-zip-node.json --markdown benchmark-zip-node.md
+          npm run bench:zip -- --runtime node --json benchmark-zip-node.json --markdown benchmark-zip-node.md
           printf '\n' >> "$GITHUB_STEP_SUMMARY"
           cat benchmark-zip-node.md >> "$GITHUB_STEP_SUMMARY"
 
@@ -79,7 +79,7 @@ jobs:
             echo "bin=$(command -v chromium-browser)" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Run Chrome benchmark
+      - name: Run Chrome benchmarks
         if: steps.chrome.outputs.bin != ''
         env:
           CHROME_BIN: ${{ steps.chrome.outputs.bin }}
@@ -87,6 +87,12 @@ jobs:
           npm run bench:inflate -- --runtime browser --json benchmark-inflate-browser.json --markdown benchmark-inflate-browser.md
           printf '\n' >> "$GITHUB_STEP_SUMMARY"
           cat benchmark-inflate-browser.md >> "$GITHUB_STEP_SUMMARY"
+          printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          npm run bench:compression -- --runtime browser --json benchmark-compression-browser.json --markdown benchmark-compression-browser.md
+          cat benchmark-compression-browser.md >> "$GITHUB_STEP_SUMMARY"
+          printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          npm run bench:zip -- --runtime browser --json benchmark-zip-browser.json --markdown benchmark-zip-browser.md
+          cat benchmark-zip-browser.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v6
