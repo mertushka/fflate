@@ -94,7 +94,10 @@
   "scripts": {
     "build": "npm run build:lib && npm run build:docs && npm run build:demo",
     "check": "tsc --noEmit",
+    "bench:all": "node scripts/benchAll.mjs",
+    "bench:compression": "node scripts/benchCompression.mjs",
     "bench:inflate": "node scripts/benchInflate.mjs",
+    "bench:zip": "node scripts/benchZip.mjs",
     "build:lib": "tsc && tsc --project tsconfig.esm.json && npm run build:rewrite && npm run build:umd",
     "build:umd": "ts-node scripts/buildUMD.ts",
     "build:rewrite": "ts-node scripts/rewriteBuilds.ts",

@@ -5,7 +5,7 @@ on:
   pull_request:
     paths:
       - src/**
-      - scripts/benchInflate.mjs
+      - scripts/bench*.mjs
       - package.json
       - package-lock.json
       - .github/workflows/benchmark.yml
@@ -15,7 +15,7 @@ on:
       - main
     paths:
       - src/**
-      - scripts/benchInflate.mjs
+      - scripts/bench*.mjs
       - package.json
       - package-lock.json
       - .github/workflows/benchmark.yml
@@ -28,8 +28,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  inflate:
-    name: Inflate benchmark
+  benchmarks:
+    name: Benchmark suite
     runs-on: ubuntu-latest
 
     steps:
@@ -48,10 +48,22 @@ jobs:
       - name: Build package artifacts
         run: npm run build:lib
 
-      - name: Run Node benchmark
+      - name: Run Node inflate benchmark
         run: |
-          npm run bench:inflate -- --runtime node --json benchmark-node.json --markdown benchmark-node.md
-          cat benchmark-node.md >> "$GITHUB_STEP_SUMMARY"
+          npm run bench:inflate -- --runtime node --json benchmark-inflate-node.json --markdown benchmark-inflate-node.md
+          cat benchmark-inflate-node.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run Node compression benchmark
+        run: |
+          npm run bench:compression -- --json benchmark-compression-node.json --markdown benchmark-compression-node.md
+          printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          cat benchmark-compression-node.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run Node ZIP benchmark
+        run: |
+          npm run bench:zip -- --json benchmark-zip-node.json --markdown benchmark-zip-node.md
+          printf '\n' >> "$GITHUB_STEP_SUMMARY"
+          cat benchmark-zip-node.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Detect Chrome
         id: chrome
@@ -72,14 +84,14 @@ jobs:
         env:
           CHROME_BIN: ${{ steps.chrome.outputs.bin }}
         run: |
-          npm run bench:inflate -- --runtime browser --json benchmark-browser.json --markdown benchmark-browser.md
+          npm run bench:inflate -- --runtime browser --json benchmark-inflate-browser.json --markdown benchmark-inflate-browser.md
           printf '\n' >> "$GITHUB_STEP_SUMMARY"
-          cat benchmark-browser.md >> "$GITHUB_STEP_SUMMARY"
+          cat benchmark-inflate-browser.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v6
         with:
-          name: inflate-benchmarks
+          name: benchmarks
           path: |
             benchmark-*.json
             benchmark-*.md
